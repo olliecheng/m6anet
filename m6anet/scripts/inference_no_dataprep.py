@@ -26,8 +26,8 @@ def argparser():
         add_help=False
     )
     # Required arguments
-    parser.add_argument("--blow5", nargs="*",
-                        help='path to the blow5 file.',
+    parser.add_argument("--fast5", nargs="*",
+                        help='path to the fast5 file.',
                         required=True)
     parser.add_argument("--fastq", nargs="*",
                         help='path to the fastq file.',
@@ -109,7 +109,7 @@ def readFasta(transcript_fasta, is_gff=0):
 
 def main(args):
 
-    blow5 = args.blow5[0]
+    fast5 = args.fast5[0]
     fastq = args.fastq[0]
     bam   = args.bam[0]
     fasta = args.transcript_fasta
@@ -145,7 +145,7 @@ def main(args):
     ALL_KMERS = list(["".join(x) for x in product(*(FLANKING_MOTIFS + CENTER_MOTIFS + FLANKING_MOTIFS))])
     ALL_KMERS = np.unique(np.array(list(map(lambda x: [x[i:i+5] for i in range(len(x) -4)],
                                         ALL_KMERS))).flatten())
-    grep_pattern='"'+'\|'.join(list(ALL_KMERS))+'"'
+    grep_pattern='"'+'\\|'.join(list(ALL_KMERS))+'"'
 
     cmd='samtools idxstats '+bam+' > stats.txt'
     subprocess.run(cmd, shell=True, check=True)
@@ -160,7 +160,8 @@ def main(args):
             subprocess.run(cmd, shell=True, check=True)
             try:
                 # Build f5c eventalign command
-                cmd = args.f5c_path + ' eventalign -r ' + fastq + ' -b ' + tx_id + '.bam -g ' + fasta + ' --slow5 ' + blow5 + ' -t 1 --signal-index --m6anet --min-mapq 0'
+                cmd = args.f5c_path + ' eventalign -r ' + fastq + ' -b ' + tx_id + '.bam -g ' + fasta + \
+                    ' -d ' + fast5 + ' -t 1 --signal-index --m6anet --min-mapq 0 --rna --pore r10'
 
                 # Add --kmer-model flag if provided (required for RNA004 chemistry)
                 if args.kmer_model is not None:
@@ -193,7 +194,7 @@ def main(args):
                         if len(d[tx_id][pos][sebenmer]) >= DEFAULT_MIN_READS:
                             tmpl.append(d)
 
-                if len(blow5.split(',')) == 1:
+                if len(fast5.split(',')) == 1:
                     ds = NanopolishDS(tmpl, DEFAULT_MIN_READS, args.norm_path, mode='Inference')
                 # else:
                 #     ds = NanopolishReplicateDS(input_dir, DEFAULT_MIN_READS, args.norm_path, mode='Inference')
