@@ -41,6 +41,9 @@ def argparser():
     parser.add_argument("--out_dir",
                         help='directory to output inference results.',
                         required=True)
+    parser.add_argument("--f5c_path",
+                        help='path to f5c software.',
+                        required=True)
 
     # Optional arguments
     parser.add_argument("--pretrained_model",
@@ -76,6 +79,9 @@ def argparser():
     parser.add_argument("--read_proba_threshold",
                         help='default probability threshold for a read to be considered modified.',
                         default=DEFAULT_READ_THRESHOLD, type=float)
+    parser.add_argument("--kmer_model",
+                        help='path to kmer model file for RNA004 chemistry. Required for RNA004, not needed for RNA002.',
+                        default=None, type=str)
     return parser
 
 def readFasta(transcript_fasta, is_gff=0):
@@ -153,7 +159,15 @@ def main(args):
             cmd='samtools index '+tx_id+'.bam'
             subprocess.run(cmd, shell=True, check=True)
             try:
-                cmd='/home/wanyk/workdir/integrate_f5c/f5c/f5c eventalign -r '+fastq+' -b '+tx_id+'.bam -g '+fasta+' --slow5 '+blow5+' -t 1 --signal-index --m6anet --min-mapq 0 | grep '+grep_pattern+' - > '+tx_id+'_eventalign.txt'
+                # Build f5c eventalign command
+                cmd = args.f5c_path + ' eventalign -r ' + fastq + ' -b ' + tx_id + '.bam -g ' + fasta + ' --slow5 ' + blow5 + ' -t 1 --signal-index --m6anet --min-mapq 0'
+
+                # Add --kmer-model flag if provided (required for RNA004 chemistry)
+                if args.kmer_model is not None:
+                    cmd += ' --kmer-model "' + args.kmer_model + '"'
+
+                # Add grep filter and output redirection
+                cmd += ' | grep ' + grep_pattern + ' - > ' + tx_id + '_eventalign.txt'
                 subprocess.run(cmd, shell=True, check=True)
                 subprocess.run('rm '+tx_id+'.bam*',shell=True, check=True)
                 eventalign_result=pd.read_csv(tx_id+'_eventalign.txt',sep='\t').iloc[:,1:7]
